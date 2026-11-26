@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
+<title>تسجيل الحضور</title>
+<style>
+:root{--ok:#2dd4a7;--bad:#fb7185;--tx:#e7edf7;--mut:#8b98ad;--card:rgba(255,255,255,.06);--bd:rgba(255,255,255,.09)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,'Segoe UI',Tahoma,Arial,sans-serif;background:#0b1220;color:var(--tx);max-width:480px;margin:0 auto;min-height:100vh;
+background-image:radial-gradient(1200px 600px at 85% -10%,rgba(45,212,167,.14),transparent 60%),radial-gradient(900px 500px at -20% 30%,rgba(99,140,255,.12),transparent 60%)}
+.wrap{padding:18px 16px 36px;display:flex;flex-direction:column;gap:14px}
+.top{display:flex;align-items:center;justify-content:space-between;padding:6px 2px}
+h1{font-size:21px;font-weight:800;letter-spacing:.2px}
+.dot{width:12px;height:12px;border-radius:50%;background:#5b6572;box-shadow:0 0 0 4px rgba(255,255,255,.04)}
+.dot.on{background:var(--ok);box-shadow:0 0 0 4px rgba(45,212,167,.15)}
+.dot.err{background:var(--bad);box-shadow:0 0 0 4px rgba(251,113,133,.15)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:22px;padding:18px;backdrop-filter:blur(6px)}
+.lbl{font-size:14px;font-weight:700;color:var(--mut);margin-bottom:10px}
+.inp{width:100%;background:rgba(0,0,0,.28);border:1px solid var(--bd);color:var(--tx);border-radius:16px;padding:13px 16px;font-size:16px;font-family:inherit;outline:none;transition:border-color .15s}
+.inp:focus{border-color:rgba(45,212,167,.5)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;max-height:250px;overflow-y:auto}
+.chip{background:rgba(255,255,255,.05);border:1px solid var(--bd);color:var(--tx);border-radius:999px;padding:9px 16px;font-size:15px;font-family:inherit;font-weight:600;cursor:pointer;transition:all .15s}
+.chip.sel{background:rgba(45,212,167,.16);border-color:rgba(45,212,167,.6);color:#a7f3df}
+.big{width:100%;padding:20px;border-radius:20px;border:none;font-size:21px;font-weight:800;color:#04121a;cursor:pointer;font-family:inherit;box-shadow:0 10px 26px rgba(0,0,0,.35);transition:transform .1s}
+.big:active{transform:scale(.975)}
+.big:disabled{opacity:.4;box-shadow:none}
+.g{background:linear-gradient(135deg,#34d399,#14b8a6)}
+.r{background:linear-gradient(135deg,#fb7185,#f43f5e)}
+.day{display:flex;flex-direction:column;gap:8px}
+.drow{display:flex;justify-content:space-between;font-size:15px;color:var(--mut)}
+.drow b{color:var(--tx);font-weight:700}
+.pill{display:inline-block;font-size:12.5px;font-weight:700;border-radius:999px;padding:3px 11px}
+.pill.ok{background:rgba(45,212,167,.14);color:#6ee7c8}
+.pill.bad{background:rgba(251,113,133,.14);color:#fda4b3}
+.none{color:var(--mut);font-size:14px;text-align:center;padding:6px}
+.msg{border-radius:16px;padding:12px 15px;font-size:15px;font-weight:700;display:none}
+.msg.show{display:block}
+.msg.ok{background:rgba(45,212,167,.13);color:#6ee7c8;border:1px solid rgba(45,212,167,.35)}
+.msg.bad{background:rgba(251,113,133,.12);color:#fda4b3;border:1px solid rgba(251,113,133,.3)}
+</style>
+</head>
+<body>
+<noscript><div style="max-width:480px;margin:40px auto;padding:20px;font-family:Tahoma,sans-serif;direction:rtl;text-align:center;color:#fff;background:#7f1d1d;border-radius:16px">الصفحة محتاجة متصفح كامل. افتح الملف بمتصفح كروم: اضغط مطولًا على الملف ← فتح باستخدام ← Chrome</div></noscript>
+<div class="wrap">
+<div class="top"><h1>تسجيل الحضور</h1><span class="dot" id="dot"></span></div>
+<div class="msg" id="msg"></div>
+<div id="dbg" style="display:none;position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,.85);color:#7ee787;font-size:11px;padding:6px 10px;direction:ltr;text-align:left;max-height:140px;overflow:auto;white-space:pre-wrap;z-index:99"></div>
+<div class="card">
+  <div class="lbl">اسمك</div>
+  <input class="inp" id="q" placeholder="ابحث عن اسمك…" autocomplete="off">
+  <div class="chips" id="chips"></div>
+</div>
+<div id="actions" style="display:none;flex-direction:column;gap:12px">
+  <button class="big g" id="bIn">تسجيل حضور</button>
+  <button class="big r" id="bOut">تسجيل انصراف</button>
+</div>
+<div class="card day" id="day" style="display:none">
+  <div class="drow"><span>الحالة</span><span id="dStatus"></span></div>
+  <div class="drow"><span>الحضور</span><b id="dIn">—</b></div>
+  <div class="drow"><span>الانصراف</span><b id="dOut">—</b></div>
+</div>
+</div>
+<script>
+var DEMO = /[?&]demo=1/.test(location.search);
+var DEBUG = /[?&]debug=1/.test(location.search);
+function dbg(m){ if(!DEBUG) return; var d=document.getElementById('dbg'); d.style.display='block'; d.textContent += m + '\n'; }
+var DEF_EMP = ['أحمد محمود','مصطفى كريم','محمد سيد','عصام عبد الله','كريم عادل','محمود حسن','يوسف علي','حسن إبراهيم'];
+var LS = (function(){try{localStorage.setItem('__t','1');localStorage.removeItem('__t');return localStorage;}catch(e){var m={};return{getItem:function(k){return (k in m)?m[k]:null;},setItem:function(k,v){m[k]=String(v);},removeItem:function(k){delete m[k];}};}})(), K = 'att7_';
+var qB=location.search.match(/[?&]backend=([^&]+)/);
+var state = {
+  backend: (qB?decodeURIComponent(qB[1]):null) || LS.getItem(K+'backend') || 'https://script.google.com/macros/s/AKfycbwajf1Nu8qkPnRrMFzIRin76a6CnvsZr80pvAtKeHdrCqQ7t32k5-YiZc4cZRTRYZf2Ng/exec',
+  employees: JSON.parse(LS.getItem(K+'employees')||'null') || DEF_EMP,
+  pingMin: Number(LS.getItem(K+'pingMin')) || 60,
+  empId: LS.getItem(K+'empId') || '',
+  recs: JSON.parse(LS.getItem(K+'recs')||'[]'),
+  queue: JSON.parse(LS.getItem(K+'queue')||'[]'),
+};
+function save(){ LS.setItem(K+'employees',JSON.stringify(state.employees)); LS.setItem(K+'recs',JSON.stringify(state.recs)); LS.setItem(K+'queue',JSON.stringify(state.queue)); LS.setItem(K+'empId',state.empId); }
+function $(id){ return document.getElementById(id); }
+function showMsg(t,ok){ var m=$('msg'); m.textContent=t; m.className='msg show '+(ok?'ok':'bad'); setTimeout(function(){m.className='msg';},3500); }
+function setDot(c){ $('dot').className='dot '+c; }
+function dayKey(ts){ var d=new Date(ts); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function fmtTime(ts){ return new Date(ts).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}); }
+function dayRecs(){ var tk=dayKey(Date.now()); return state.recs.filter(function(r){return r.empId===state.empId && dayKey(r.ts)===tk;}); }
+function lastOf(t){ return dayRecs().filter(function(r){return r.type===t;}).pop(); }
+function isWorking(){ var r=dayRecs(); return !!(r.length && r[r.length-1].type==='in'); }
+function renderChips(){
+  var q=$('q').value.trim(); var list=state.employees.filter(function(n){return !q||n.indexOf(q)>-1;});
+  $('chips').innerHTML = list.map(function(n){return '<button class="chip'+(n===state.empId?' sel':'')+'" data-n="'+n.replace(/"/g,'&quot;')+'">'+n+'</button>';}).join('') || '<div class="none">مفيش اسم مطابق</div>';
+  Array.prototype.forEach.call(document.querySelectorAll('.chip'),function(c){ c.onclick=function(){ state.empId=c.dataset.n; save(); render(); }; });
+}
+function render(){
+  renderChips();
+  var sel=!!state.empId;
+  $('actions').style.display=sel?'flex':'none';
+  $('day').style.display=sel?'flex':'none';
+  if(!sel) return;
+  var din=lastOf('in'), dout=lastOf('out'), w=isWorking();
+  $('bIn').disabled=w; $('bOut').disabled=!w;
+  $('dStatus').innerHTML = w?'<span class="pill ok">حاضر</span>':(dout?'<span class="pill bad">انصرف</span>':'—');
+  $('dIn').textContent = din?fmtTime(din.ts):'—';
+  $('dOut').textContent = dout?fmtTime(dout.ts):'—';
+}
+function gps(){ return new Promise(function(res,rej){ navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true,timeout:15000,maximumAge:60000}); }); }
+function pushRec(r){ state.recs.push(r); state.queue.push(r); save(); render(); flush(); }
+function jsonp(params,cb){
+  var name='jpc'+Math.random().toString(36).slice(2);
+  params.callback=name;
+  var q=Object.keys(params).map(function(k){return encodeURIComponent(k)+'='+encodeURIComponent(params[k]);}).join('&');
+  var s=document.createElement('script');
+  var to=setTimeout(function(){done();cb(new Error('timeout'));},20000);
+  function done(){clearTimeout(to);try{delete window[name];}catch(e){window[name]=undefined;}if(s.parentNode)s.parentNode.removeChild(s);}
+  window[name]=function(d){done();cb(null,d);};
+  s.onerror=function(){done();cb(new Error('net'));};
+  s.src=state.backend+'?'+q;
+  document.body.appendChild(s);
+}
+function flush(){
+  if(!state.queue.length){ setDot(state.backend?'on':''); return; }
+  if(!state.backend){ setDot('err'); return; }
+  var r=state.queue[0];
+  jsonp({action:'add',ts:r.ts,empId:r.empId,empName:r.empName,type:r.type,lat:r.lat,lng:r.lng,acc:Math.round(r.acc||0)},function(err,d){
+    if(!err&&d){ state.queue.shift(); save(); dbg('add ' + (d.ok?'ok':'REJECTED '+JSON.stringify(d)) + ' | queue=' + state.queue.length); flush(); }
+    else { setDot('err'); dbg('add FAIL ' + (err?err.message:'?') + ' | queue=' + state.queue.length); }
+  });
+}
+function record(type){
+  if(!state.empId) return;
+  gps().then(function(p){
+    pushRec({ts:Date.now(),iso:new Date().toISOString(),empId:state.empId,empName:state.empId,type:type,lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy||0});
+    showMsg(type==='in'?'تم تسجيل الحضور ✅':'تم تسجيل الانصراف ✅',true);
+  },function(e){ showMsg('مش قادر أجيب الموقع — فعّل الـ GPS والصلاحية',false); });
+}
+$('bIn').onclick=function(){record('in');};
+$('bOut').onclick=function(){record('out');};
+$('q').oninput=renderChips;
+var pingT=null;
+function startPing(){
+  if(pingT) return;
+  pingT=setInterval(function(){ if(isWorking()) record('auto'); }, state.pingMin*60000);
+}
+function pullConfig(){
+  if(!state.backend||DEMO) return;
+  jsonp({action:'get'},function(err,d){
+    if(!err&&d&&d.ok){
+      if(d.employees&&d.employees.length){ state.employees=d.employees.map(function(e){return typeof e==='string'?e:e.name;}); }
+      if(d.pingMin){ state.pingMin=Number(d.pingMin)||60; }
+      save(); render(); setDot('on'); flush();
+      dbg('get ok | names=' + d.employees.length + ' | pingMin=' + d.pingMin);
+    } else { setDot('err'); dbg('get FAIL ' + (err?err.message:JSON.stringify(d))); }
+  });
+}
+if(DEMO){
+  if(!state.empId) state.empId='أحمد محمود';
+  var t0=new Date(); t0.setHours(8,5,0,0); state.recs.push({ts:t0.getTime(),iso:t0.toISOString(),empId:'أحمد محمود',empName:'أحمد محمود',type:'in',lat:30.05,lng:31.23,acc:12});
+}
+dbg('js ok | storage=' + (LS===localStorage?'real':'memory') + ' | geo=' + (navigator.geolocation?'yes':'MISSING') + ' | backend=' + (state.backend?'set':'EMPTY'));
+setDot(''); render(); startPing(); pullConfig();
+setInterval(pullConfig,120000);
+</script>
+</body>
+</html>
