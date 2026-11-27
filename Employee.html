@@ -70,7 +70,7 @@ var DEF_EMP = ['أحمد محمود','مصطفى كريم','محمد سيد','ع
 var LS = (function(){try{localStorage.setItem('__t','1');localStorage.removeItem('__t');return localStorage;}catch(e){var m={};return{getItem:function(k){return (k in m)?m[k]:null;},setItem:function(k,v){m[k]=String(v);},removeItem:function(k){delete m[k];}};}})(), K = 'att7_';
 var qB=location.search.match(/[?&]backend=([^&]+)/);
 var state = {
-  backend: (qB?decodeURIComponent(qB[1]):null) || LS.getItem(K+'backend') || 'https://script.google.com/macros/s/AKfycbwajf1Nu8qkPnRrMFzIRin76a6CnvsZr80pvAtKeHdrCqQ7t32k5-YiZc4cZRTRYZf2Ng/exec',
+  backend: (qB?decodeURIComponent(qB[1]):null) || LS.getItem(K+'backend') || 'https://script.google.com/macros/s/AKfycbwrZXa0-ixOKeJYFUUVuRMwGbznH3D2YIs4MuTHckQfsgoggJwQ-ZznC97lPUEUufJI/exec',
   employees: JSON.parse(LS.getItem(K+'employees')||'null') || DEF_EMP,
   pingMin: Number(LS.getItem(K+'pingMin')) || 60,
   empId: LS.getItem(K+'empId') || '',
@@ -103,7 +103,15 @@ function render(){
   $('dIn').textContent = din?fmtTime(din.ts):'—';
   $('dOut').textContent = dout?fmtTime(dout.ts):'—';
 }
-function gps(){ return new Promise(function(res,rej){ navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true,timeout:15000,maximumAge:60000}); }); }
+function gpsOnce(){ return new Promise(function(res,rej){ navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true,timeout:15000,maximumAge:0}); }); }
+function gps(){
+  return gpsOnce().then(function(p1){
+    if((p1.coords.accuracy||9999) <= 50) return p1;
+    return new Promise(function(res){ setTimeout(res,2500); }).then(gpsOnce).then(function(p2){
+      return (p2.coords.accuracy||9999) < (p1.coords.accuracy||9999) ? p2 : p1;
+    }, function(){ return p1; });
+  });
+}
 function pushRec(r){ state.recs.push(r); state.queue.push(r); save(); render(); flush(); }
 function jsonp(params,cb){
   var name='jpc'+Math.random().toString(36).slice(2);
@@ -117,21 +125,28 @@ function jsonp(params,cb){
   s.src=state.backend+'?'+q;
   document.body.appendChild(s);
 }
+var flushing=false;
 function flush(){
+  if(flushing) return;
   if(!state.queue.length){ setDot(state.backend?'on':''); return; }
   if(!state.backend){ setDot('err'); return; }
+  flushing=true;
   var r=state.queue[0];
   jsonp({action:'add',ts:r.ts,empId:r.empId,empName:r.empName,type:r.type,lat:r.lat,lng:r.lng,acc:Math.round(r.acc||0)},function(err,d){
+    flushing=false;
     if(!err&&d){ state.queue.shift(); save(); dbg('add ' + (d.ok?'ok':'REJECTED '+JSON.stringify(d)) + ' | queue=' + state.queue.length); flush(); }
     else { setDot('err'); dbg('add FAIL ' + (err?err.message:'?') + ' | queue=' + state.queue.length); }
   });
 }
+var busy=false;
 function record(type){
-  if(!state.empId) return;
+  if(!state.empId || busy) return;
+  busy=true;
   gps().then(function(p){
     pushRec({ts:Date.now(),iso:new Date().toISOString(),empId:state.empId,empName:state.empId,type:type,lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy||0});
     showMsg(type==='in'?'تم تسجيل الحضور ✅':'تم تسجيل الانصراف ✅',true);
-  },function(e){ showMsg('مش قادر أجيب الموقع — فعّل الـ GPS والصلاحية',false); });
+    busy=false; render();
+  },function(e){ busy=false; showMsg('مش قادر أجيب الموقع — فعّل الـ GPS والصلاحية',false); });
 }
 $('bIn').onclick=function(){record('in');};
 $('bOut').onclick=function(){record('out');};

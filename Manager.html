@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#101418">
 <title>لوحة المدير — الحضور</title>
@@ -11,13 +10,13 @@
   :root{
     --bg:#101418; --card:#1a2129; --card2:#222b36; --line:#2e3947;
     --txt:#e8edf2; --dim:#93a1b0; --acc:#2f9e6e; --acc2:#27b381;
-    --bad:#e05555; --blue:#3f8ef7;
+    --bad:#e05555; --blue:#3f8ef7; --warn:#e0a945;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
   html,body{margin:0;padding:0;height:100%}
   body{
     background:var(--bg); color:var(--txt);
-    font-family:-apple-system,"Segoe UI",Roboto,"Noto Kufi Arabic",Arial,sans-serif;
+    font-family:-apple-system,"Segoe UI",Roboto,"Noto Kufi Arabic",Tahoma,Arial,sans-serif;
     display:flex; flex-direction:column; height:100%; overflow:hidden;
   }
   header{
@@ -44,14 +43,11 @@
     border-radius:10px;padding:11px 12px;font-size:15px;width:100%;font-family:inherit;
   }
   label{font-size:13px;color:var(--dim);display:block;margin:10px 0 4px}
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
-  th{color:var(--dim);font-weight:600}
-  td a{color:var(--blue)}
   .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700}
   .pill.in{background:#17352a;color:#7fdcae}
   .pill.out{background:#3a1d1d;color:#f0a0a0}
   .pill.loc{background:#1a2634;color:#9cc4f5}
+  .pill.abs{background:#33261a;color:#eec27f}
   .tabbar{
     flex:0 0 auto;display:flex;background:var(--card);border-top:1px solid var(--line);
     padding-bottom:env(safe-area-inset-bottom,0);
@@ -68,6 +64,16 @@
   .delbtn{background:none;border:1px solid var(--bad);color:var(--bad);border-radius:8px;padding:5px 12px;font-size:13px;cursor:pointer}
   .summary-card{background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:14px;line-height:1.9}
   .summary-card a{color:var(--blue)}
+  .daycard{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+  .daycard .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .daycard .head b{font-size:16px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;font-size:13.5px}
+  .grid .k{color:var(--dim)}
+  .grid .v{text-align:left;font-weight:600}
+  .grid .v.good{color:#7fdcae}
+  .grid .v.late{color:#f0a0a0}
+  .grid .v.warn{color:#eec27f}
+  .daycard .maplink{display:inline-block;margin-top:8px;color:var(--blue);font-size:13.5px}
   .toast{
     position:fixed;bottom:84px;right:14px;left:14px;background:#000d;border:1px solid var(--line);
     color:var(--txt);padding:12px;border-radius:12px;font-size:14px;display:none;z-index:50;text-align:center;
@@ -92,7 +98,7 @@
         <input type="date" id="logDate">
         <select id="logEmp"><option value="">كل الموظفين</option></select>
       </div>
-      <button class="bigbtn btn-sec" id="btnCsv">⬇️ تصدير اليوم Excel / CSV</button>
+      <button class="bigbtn btn-in" id="btnXlsx">⬇️ تصدير Excel (اليوم + مؤشرات الشهر)</button>
       <button class="bigbtn btn-sec" id="btnSheet">📊 افتح الجدول المشترك (Google Sheet)</button>
     </div>
     <div class="card">
@@ -100,22 +106,21 @@
       <div id="nowStatus"></div>
     </div>
     <div class="card">
-      <h2>ملخص اليوم</h2>
-      <div id="logSummary"></div>
-    </div>
-    <div class="card">
-      <h2>السجل</h2>
-      <div style="overflow-x:auto">
-      <table>
-        <thead><tr><th>الاسم</th><th>النوع</th><th>الوقت</th><th>الموقع</th></tr></thead>
-        <tbody id="logBody"></tbody>
-      </table>
-      </div>
+      <h2>سجل اليوم</h2>
+      <div id="dayCards"></div>
     </div>
   </div>
 
   <!-- ============ SETTINGS VIEW ============ -->
   <div class="view" id="v-set">
+    <div class="card">
+      <h2>مواعيد الشغل (الشفت)</h2>
+      <div class="row">
+        <div style="flex:1"><label>بداية الشفت</label><input type="time" id="shiftStart"></div>
+        <div style="flex:1"><label>نهاية الشفت</label><input type="time" id="shiftEnd"></div>
+      </div>
+      <div class="muted">بيتحسب بيهم التأخير والخروج البدري والسهر في السجل وفي ملف Excel.</div>
+    </div>
     <div class="card">
       <h2>الفحص الأوتوماتيك للموقع</h2>
       <label>يفحص مكان كل موظف حاضر كل:</label>
@@ -125,7 +130,7 @@
         <option value="30">30 دقيقة</option>
         <option value="60" selected>ساعة</option>
       </select>
-      <div class="muted" style="margin-top:8px">الفحص بيحصل من موبايل الموظف طالما صفحة التسجيل مفتوحة عنده (حتى لو في الخلفية والشاشة نايمة على أغلب موبايلات أندرويد). لو قفلها، الفحص بيقف لحد ما يفتح تاني.</div>
+      <div class="muted" style="margin-top:8px">الفحص بيحصل من موبايل الموظف طالما صفحة التسجيل مفتوحة عنده. لو قفلها، الفحص بيقف لحد ما يفتح تاني.</div>
     </div>
     <div class="card">
       <h2>الموظفين</h2>
@@ -182,32 +187,46 @@
 "use strict";
 var $=function(id){return document.getElementById(id)};
 
-var BACKEND_CONST="https://script.google.com/macros/s/AKfycbwajf1Nu8qkPnRrMFzIRin76a6CnvsZr80pvAtKeHdrCqQ7t32k5-YiZc4cZRTRYZf2Ng/exec";
+var BACKEND_CONST="https://script.google.com/macros/s/AKfycbwrZXa0-ixOKeJYFUUVuRMwGbznH3D2YIs4MuTHckQfsgoggJwQ-ZznC97lPUEUufJI/exec";
 var SHEET_URL="https://docs.google.com/spreadsheets/d/1zyDCeUdIWfOs9r5iGN54oj6eQUFWbHoQ8vp7TSloN0U/edit";
 function BACKEND_URL(){return localStorage.getItem("att6_backend")||BACKEND_CONST||"";}
 
 var LS_STATE="att6_state", LS_REC="att6_records", LS_PIN="att6_pin";
 var DEMO=/[?&]demo=1/.test(location.search);
 
-function loadState(){try{var s=JSON.parse(localStorage.getItem(LS_STATE));if(s)return s;}catch(e){}return {pin:"1234",employees:[],pingMin:60};}
+function loadState(){try{var s=JSON.parse(localStorage.getItem(LS_STATE));if(s)return s;}catch(e){}return {pin:"1234",employees:[],pingMin:60,shiftStart:"08:00",shiftEnd:"17:00"};}
 function saveState(){localStorage.setItem(LS_STATE,JSON.stringify(state))}
 function loadRecs(){try{return JSON.parse(localStorage.getItem(LS_REC))||[]}catch(e){return[]}}
 function saveRecs(){localStorage.setItem(LS_REC,JSON.stringify(recs))}
 
 var state=loadState(), recs=loadRecs();
+if(state.shiftStart==null)state.shiftStart="08:00";
+if(state.shiftEnd==null)state.shiftEnd="17:00";
 
-if(DEMO && !localStorage.getItem("att6_demo")){
-  state.employees=[{id:1,name:"أحمد محمود"},{id:2,name:"محمد سيد"},{id:3,name:"مصطفى كريم"},{id:4,name:"عصام عبد الله"},{id:5,name:"محمود حسن"},{id:6,name:"كريم عادل"}];
-  var today=new Date();function T(h,m){var d=new Date(today);d.setHours(h,m,0,0);return d.getTime();}
-  recs=[
-    {id:"d1",empId:1,empName:"أحمد محمود",type:"in",ts:T(7,52),lat:30.01854,lng:31.43208,acc:12},
-    {id:"d2",empId:2,empName:"محمد سيد",type:"in",ts:T(8,5),lat:30.01860,lng:31.43215,acc:9},
-    {id:"d3",empId:3,empName:"مصطفى كريم",type:"in",ts:T(8,31),lat:30.01940,lng:31.43390,acc:25},
-    {id:"d4",empId:2,empName:"محمد سيد",type:"loc",ts:T(11,15),lat:30.01855,lng:31.43211,acc:8},
-    {id:"d5",empId:3,empName:"مصطفى كريم",type:"loc",ts:T(11,16),lat:30.02510,lng:31.44100,acc:15},
-    {id:"d6",empId:1,empName:"أحمد محمود",type:"out",ts:T(16,2),lat:30.02130,lng:31.44020,acc:11}
+if(DEMO && !localStorage.getItem("att6_demo3")){
+  state.employees=[{id:1,name:"أحمد محمود"},{id:2,name:"محمد سيد"},{id:3,name:"مصطفى كريم"}];
+  recs=[];
+  function mk(name,dayOff,h,mi,type,lat,lng){
+    var d=new Date(); d.setDate(d.getDate()-dayOff); d.setHours(h,mi,0,0);
+    return {id:"d"+dayOff+type+name+mi,empId:name,empName:name,type:type,ts:d.getTime(),lat:lat||30.01854,lng:lng||31.43208,acc:12};
+  }
+  // 6 أيام شغل (مع تخطي النهاردة جزئيًا) بأنماط مختلفة
+  var pats=[
+    {n:"أحمد محمود", days:[{i:[7,52],o:[17,24]},{i:[8,3],o:[17,10]},{i:[9,14],o:[16,40]},{i:[7,58],o:[18,32]},{i:[8,1],o:null},{i:[8,5],o:[17,5]}]},
+    {n:"محمد سيد", days:[{i:[8,20],o:[16,55]},{i:[7,45],o:[17,30]},null,{i:[8,10],o:[17,0]},{i:[8,0],o:null},null]},
+    {n:"مصطفى كريم", days:[{i:[10,5],o:[15,30]},{i:[8,30],o:[17,45]},{i:[8,15],o:[17,15]},null,{i:[9,40],o:null},{i:[8,2],o:[17,20]}]}
   ];
-  localStorage.setItem("att6_demo","1");
+  pats.forEach(function(p){
+    p.days.forEach(function(day,di){
+      if(!day) return; // غياب
+      var dOff=p.days.length-1-di; // الأقدم الأول
+      recs.push(mk(p.n,dOff,day.i[0],day.i[1],"in"));
+      recs.push(mk(p.n,dOff,11,15,"loc",30.019,31.433));
+      if(day.o) recs.push(mk(p.n,dOff,day.o[0],day.o[1],"out",30.021,31.44));
+    });
+  });
+  recs.sort(function(a,b){return a.ts-b.ts});
+  localStorage.setItem("att6_demo3","1");
   saveState();saveRecs();
 }
 
@@ -215,8 +234,11 @@ function toast(m){var t=$("toast");t.textContent=m;t.style.display="block";clear
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
 function fmtTime(ts){var d=new Date(ts);return d.toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit"})}
 function fmtDur(ms){var h=Math.floor(ms/3600000),m=Math.round((ms%3600000)/60000);return h? h+" س و"+m+" د" : m+" د"}
+function fmtMin(m){return m>=60?Math.floor(m/60)+" س و"+(m%60)+" د":m+" د"}
 function dayKey(ts){var d=new Date(ts);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 function mapLink(r){return "https://maps.google.com/?q="+r.lat+","+r.lng}
+function hmToMin(hm){var p=String(hm||"08:00").split(":");return (+p[0])*60+(+p[1]||0)}
+function minsOf(ts){var d=new Date(ts);return d.getHours()*60+d.getMinutes()}
 
 var online=false;
 function setSync(ok,msg){var d=$("syncDot");d.className="sync-dot"+(ok?" on":"");d.textContent=ok?"🟢 متصل بالجدول":(msg||"🔴 غير متصل");}
@@ -272,7 +294,7 @@ $("btnPinGo").addEventListener("click",function(){
     $("pinIn").value="";showView("v-log");
   }
   if(!online){ if(p===state.pin){ok();}else{$("pinMsg").textContent="PIN غلط، حاول تاني.";} return; }
-  api({action:"list",pin:p,day:dayKey(Date.now())},function(r){
+  api({action:"list",pin:p},function(r){
     if(r&&r.ok){ok();}else{$("pinMsg").textContent="PIN غلط، حاول تاني.";}
   });
 });
@@ -285,12 +307,15 @@ function renderLog(){
   if(!d.value)d.value=dayKey(Date.now());
   var se=$("logEmp"),cur=se.value;
   se.innerHTML='<option value="">كل الموظفين</option>';
-  state.employees.forEach(function(e){
-    var o=document.createElement("option");o.value=e.id;o.textContent=e.name;se.appendChild(o);
+  var seen={};
+  state.employees.forEach(function(e){seen[e.name]=1;});
+  recs.forEach(function(r){seen[r.empName]=1;});
+  Object.keys(seen).forEach(function(n){
+    var o=document.createElement("option");o.value=n;o.textContent=n;se.appendChild(o);
   });
   se.value=cur;
   if(online){
-    api({action:"list",pin:getPin(),day:d.value},function(r){
+    api({action:"list",pin:getPin()},function(r){
       if(r&&r.ok){mergeRecs(r.records);}
       drawLog();
     });
@@ -307,24 +332,34 @@ function mergeRecs(serverRecs){
 }
 $("logDate").addEventListener("change",drawLog);
 $("logEmp").addEventListener("change",drawLog);
-function dayRecs(){
-  var k=$("logDate").value||dayKey(Date.now());
-  var f=$("logEmp").value;
-  return recs.filter(function(r){return dayKey(r.ts)===k&&(!f||String(r.empId)===f)}).sort(function(a,b){return a.ts-b.ts});
-}
-function drawLog(){
-  var rs=dayRecs(),tb=$("logBody");
-  tb.innerHTML=rs.length?"":'<tr><td colspan="4" class="muted">مفيش سجلات في اليوم ده.</td></tr>';
-  rs.forEach(function(r){
-    var tr=document.createElement("tr");
-    var lbl=r.type==="in"?'<span class="pill in">حضور</span>':r.type==="out"?'<span class="pill out">انصراف</span>':'<span class="pill loc">موقع</span>';
-    tr.innerHTML="<td>"+esc(r.empName)+"</td><td>"+lbl+"</td><td>"+fmtTime(r.ts)+"</td>"+
-      "<td><a href='"+mapLink(r)+"' target='_blank'>📍 الخريطة</a></td>";
-    tb.appendChild(tr);
+
+// ====== إحصائيات يوم واحد لموظف واحد ======
+function dayStats(name,k){
+  var arr=recs.filter(function(r){return r.empName===name&&dayKey(r.ts)===k}).sort(function(a,b){return a.ts-b.ts});
+  var firstIn=null,lastOut=null,worked=0,pings=0,lastLoc=null,openIn=null;
+  arr.forEach(function(r){
+    if(r.type==="in"){if(!firstIn)firstIn=r.ts;openIn=r.ts;}
+    else if(r.type==="out"){lastOut=r.ts;if(openIn){worked+=r.ts-openIn;openIn=null;}}
+    else{lastLoc=r;pings++;}
   });
+  var now=new Date();var isToday=(k===dayKey(Date.now()));
+  if(openIn&&isToday)worked+=Date.now()-openIn; // لسه شغال: احسب لحد دلوقتي
+  var sMin=hmToMin(state.shiftStart),eMin=hmToMin(state.shiftEnd);
+  var lateMin=firstIn?Math.max(0,minsOf(firstIn)-sMin):0;
+  var earlyMin=(lastOut&&minsOf(lastOut)<eMin)?eMin-minsOf(lastOut):0;
+  var otMin=(lastOut&&minsOf(lastOut)>eMin)?minsOf(lastOut)-eMin:0;
+  var working=!!openIn;
+  return {has:!!arr.length,firstIn:firstIn,lastOut:lastOut,worked:worked,lateMin:lateMin,earlyMin:earlyMin,otMin:otMin,pings:pings,lastLoc:lastLoc||(lastOut?{lat:NaN}:null),working:working,lastAny:arr.length?arr[arr.length-1]:null};
+}
+function selDayFilter(){return $("logEmp").value||"";}
+
+function drawLog(){
+  var k=$("logDate").value||dayKey(Date.now());
+  var f=selDayFilter();
+  // مين فين دلوقتي
   var ns=$("nowStatus"),tk=dayKey(Date.now());
   var latest={};
-  recs.forEach(function(r){if(dayKey(r.ts)===tk&&(!latest[r.empId]||r.ts>latest[r.empId].ts))latest[r.empId]=r;});
+  recs.forEach(function(r){if(dayKey(r.ts)===tk&&(!latest[r.empName]||r.ts>latest[r.empName].ts))latest[r.empName]=r;});
   var ids=Object.keys(latest);
   if(!ids.length){ns.innerHTML='<span class="muted">مفيش حد سجل النهاردة لسه.</span>';}
   else{
@@ -340,39 +375,487 @@ function drawLog(){
       ns.appendChild(div);
     });
   }
-  var by={},sum=$("logSummary");
-  rs.forEach(function(r){(by[r.empName]=by[r.empName]||[]).push(r)});
-  var names=Object.keys(by);
-  sum.innerHTML=names.length?"":'<span class="muted">مفيش حاجة تتلخص.</span>';
-  names.forEach(function(n){
-    var arr=by[n],firstIn=null,lastOut=null,worked=0,locPings=0;
-    arr.forEach(function(r){
-      if(r.type==="in"){if(!firstIn)firstIn=r.ts;}
-      if(r.type==="out"){lastOut=r.ts;if(firstIn){worked+=r.ts-firstIn;firstIn=null;}}
-      if(r.type==="loc"){locPings++;}
-    });
-    var div=document.createElement("div");div.className="summary-card";
-    div.innerHTML="<b>"+esc(n)+"</b><br>"+
-      "حضور: "+(firstIn||arr.some(function(r){return r.type==="in"})?fmtTime(arr.filter(function(r){return r.type==="in"})[0].ts):"—")+
-      " | انصراف: "+(lastOut?fmtTime(lastOut):"لسه شغال")+
-      " | شغل: "+(worked?fmtDur(worked):"—")+
-      (locPings?("<br>نقط تتبع: "+locPings):"");
-    sum.appendChild(div);
+  // كروت اليوم
+  var dc=$("dayCards");dc.innerHTML="";
+  var names={};
+  state.employees.forEach(function(e){names[e.name]=1;});
+  recs.forEach(function(r){if(dayKey(r.ts)===k)names[r.empName]=1;});
+  var list=Object.keys(names).filter(function(n){return !f||n===f}).sort();
+  var isPast=k<dayKey(Date.now());
+  var shown=0;
+  list.forEach(function(n){
+    var st=dayStats(n,k);
+    if(!st.has&&!isPast&&!state.employees.some(function(e){return e.name===n}))return;
+    if(!st.has&&!isPast)return; // النهاردة لسه بدري نحكم غياب
+    shown++;
+    var card=document.createElement("div");card.className="daycard";
+    var status,cls;
+    if(!st.has){status="غايب";cls="abs";}
+    else if(st.working){status="حاضر دلوقتي";cls="in";}
+    else if(st.lastOut){status="انصرف";cls="out";}
+    else{status="سجل موقع بس";cls="loc";}
+    var h='<div class="head"><b>'+esc(n)+'</b><span class="pill '+cls+'">'+status+'</span></div>';
+    if(st.has){
+      h+='<div class="grid">';
+      h+='<span class="k">الحضور</span><span class="v">'+(st.firstIn?fmtTime(st.firstIn):"—")+'</span>';
+      h+='<span class="k">الانصراف</span><span class="v">'+(st.lastOut?fmtTime(st.lastOut):(st.working?"لسه شغال":"—"))+'</span>';
+      h+='<span class="k">ساعات الشغل</span><span class="v good">'+(st.worked>60000?fmtDur(st.worked):"—")+'</span>';
+      h+='<span class="k">تأخير</span><span class="v '+(st.lateMin?"late":"")+'">'+(st.lateMin?fmtMin(st.lateMin):"مفيش ✅")+'</span>';
+      h+='<span class="k">خروج بدري</span><span class="v '+(st.earlyMin?"warn":"")+'">'+(st.earlyMin?fmtMin(st.earlyMin):"—")+'</span>';
+      h+='<span class="k">سهر / أوفر تايم</span><span class="v '+(st.otMin?"good":"")+'">'+(st.otMin?fmtMin(st.otMin):"—")+'</span>';
+      h+='</div>';
+      var loc=st.lastAny;
+      if(loc&&loc.lat)h+='<a class="maplink" href="'+mapLink(loc)+'" target="_blank">📍 آخر موقع على الخريطة</a>';
+    }else{
+      h+='<div class="muted">مفيش أي تسجيل في اليوم ده.</div>';
+    }
+    card.innerHTML=h;
+    dc.appendChild(card);
   });
+  if(!shown)dc.innerHTML='<div class="muted">مفيش بيانات لليوم ده.</div>';
 }
-$("btnCsv").addEventListener("click",function(){
-  var rs=dayRecs();
-  if(!rs.length){toast("مفيش سجلات للتصدير");return;}
-  var rows=[["الاسم","النوع","التاريخ","الوقت","خط العرض","خط الطول","دقة GPS","لينك الخريطة"]];
-  rs.forEach(function(r){
-    rows.push([r.empName,r.type==="in"?"حضور":r.type==="out"?"انصراف":"موقع",
-      dayKey(r.ts),fmtTime(r.ts),r.lat,r.lng,"±"+r.acc+"م",mapLink(r)]);
+
+// ====== KPIs لشهر كامل لكل موظف ======
+function monthDays(monthKey){
+  // monthKey = "YYYY-MM" — من أول الشهر لحد النهاردة (أو آخر الشهر لو شهر فات)
+  var y=+monthKey.slice(0,4),m=+monthKey.slice(5,7);
+  var now=new Date();
+  var lastDay=(y===now.getFullYear()&&m===now.getMonth()+1)?now.getDate():new Date(y,m,0).getDate();
+  var out=[];
+  for(var d=1;d<=lastDay;d++)out.push(y+"-"+String(m).padStart(2,"0")+"-"+String(d).padStart(2,"0"));
+  return out;
+}
+function isFriday(k){var p=k.split("-");return new Date(+p[0],+p[1]-1,+p[2]).getDay()===5;}
+function monthKPI(name,monthKey){
+  var days=monthDays(monthKey);
+  var present=0,absent=0,totalWorked=0,totalLate=0,totalOT=0,earlyCount=0,inMins=[];
+  days.forEach(function(k){
+    var st=dayStats(name,k);
+    if(st.has&&st.firstIn){
+      present++;
+      totalWorked+=st.worked;
+      totalLate+=st.lateMin;
+      totalOT+=st.otMin;
+      if(st.earlyMin)earlyCount++;
+      inMins.push(minsOf(st.firstIn));
+    }else if(k<dayKey(Date.now())&&!isFriday(k)){
+      absent++;
+    }
   });
-  var csv="﻿"+rows.map(function(r){return r.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"'}).join(",")}).join("\r\n");
-  var a=document.createElement("a");
-  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
-  a.download="حضور_"+($("logDate").value||"اليوم")+".csv";
-  a.click();
+  var avgIn="—";
+  if(inMins.length){
+    var avg=Math.round(inMins.reduce(function(a,b){return a+b},0)/inMins.length);
+    var dd=new Date();dd.setHours(Math.floor(avg/60),avg%60,0,0);
+    avgIn=fmtTime(dd.getTime());
+  }
+  return {present:present,absent:absent,totalWorked:totalWorked,totalLate:totalLate,totalOT:totalOT,earlyCount:earlyCount,avgIn:avgIn};
+}
+
+//XLSX-START
+// ====== مولّد Excel (.xlsx) منسّق + رسوم بيانية أصلية، بدون مكتبات ======
+function crc32(str){
+  var table=crc32.t;
+  if(!table){
+    table=crc32.t=[];
+    for(var n=0;n<256;n++){var c=n;for(var k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);table[n]=c>>>0;}
+  }
+  var crc=0xFFFFFFFF;
+  for(var i=0;i<str.length;i++){crc=(crc>>>8)^table[(crc^str[i])&0xFF];}
+  return (crc^0xFFFFFFFF)>>>0;
+}
+function utf8Bytes(s){
+  var out=[];
+  for(var i=0;i<s.length;i++){
+    var c=s.charCodeAt(i);
+    if(c<128)out.push(c);
+    else if(c<2048){out.push(192|(c>>6),128|(c&63));}
+    else if(c>=0xD800&&c<0xDC00){var c2=s.charCodeAt(++i);var u=0x10000+((c-0xD800)<<10)+(c2-0xDC00);out.push(240|(u>>18),128|((u>>12)&63),128|((u>>6)&63),128|(u&63));}
+    else{out.push(224|(c>>12),128|((c>>6)&63),128|(c&63));}
+  }
+  return out;
+}
+function zipStore(files){
+  var chunks=[],central=[],offset=0;
+  function u16(v){return [v&255,(v>>8)&255];}
+  function u32(v){return [v&255,(v>>8)&255,(v>>16)&255,(v>>24)&255];}
+  files.forEach(function(f){
+    var name=utf8Bytes(f.name),data=f.data,crc=crc32(data);
+    var lh=[].concat([80,75,3,4],[20,0],[0,0],[0,0],[0,0],[0,0],u32(crc),u32(data.length),u32(data.length),u16(name.length),u16(0),name);
+    chunks.push(lh,data);
+    var cd=[].concat([80,75,1,2],[20,0],[20,0],[0,0],[0,0],[0,0],[0,0],u32(crc),u32(data.length),u32(data.length),u16(name.length),[0,0],[0,0],[0,0],[0,0],[0,0,0,0],u32(offset),name);
+    central.push(cd);
+    offset+=lh.length+data.length;
+  });
+  var cdSize=0;central.forEach(function(c){cdSize+=c.length;});
+  var eocd=[].concat([80,75,5,6],[0,0],[0,0],u16(files.length),u16(files.length),u32(cdSize),u32(offset),u16(0));
+  var total=offset+cdSize+eocd.length;
+  var out=new Uint8Array(total),pos=0;
+  chunks.forEach(function(c){out.set(c,pos);pos+=c.length;});
+  central.forEach(function(c){out.set(c,pos);pos+=c.length;});
+  out.set(eocd,pos);
+  return out;
+}
+function xesc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+function colName(i){var s="";i++;while(i>0){var m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26);}return s;}
+// أنماط الخلايا: 0 عادي | 1 هيدر | 2 مخطط | 3 عنوان | 4 أخضر | 5 أحمر | 6 برتقالي | 7 أزرق | 8 إجمالي
+var XS={PLAIN:0,HEADER:1,BAND:2,TITLE:3,GREEN:4,RED:5,ORANGE:6,BLUE:7,TOTAL:8,HGREEN:9,HRED:10,HORANGE:11,HBLUE:12,HPURPLE:13};
+function xc(v,s){return {v:v,s:s};}
+function stylesXml(){
+  function xf(f,fill){return '<xf numFmtId="0" fontId="'+f+'" fillId="'+fill+'" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>';}
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+  +'<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+  +'<fonts count="10">'
+  +'<font><sz val="11"/><name val="Calibri"/></font>'
+  +'<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>'
+  +'<font><b/><sz val="14"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>'
+  +'<font><b/><sz val="11"/><name val="Calibri"/></font>'
+  +'<font><b/><sz val="11"/><color rgb="FF1F7A3D"/><name val="Calibri"/></font>'
+  +'<font><b/><sz val="11"/><color rgb="FFB3372F"/><name val="Calibri"/></font>'
+  +'<font><b/><sz val="11"/><color rgb="FF9A6200"/><name val="Calibri"/></font>'
+  +'<font><b/><sz val="11"/><color rgb="FF1F5FA8"/><name val="Calibri"/></font>'
+  +'<font><b/><sz val="11"/><color rgb="FF16324F"/><name val="Calibri"/></font>'
+  +'<font><b/><sz val="11"/><color rgb="FF6C3FA8"/><name val="Calibri"/></font>'
+  +'</fonts>'
+  +'<fills count="15">'
+  +'<fill><patternFill patternType="none"/></fill>'
+  +'<fill><patternFill patternType="gray125"/></fill>'
+  +'<fill><gradientFill degree="90"><stop position="0"><color rgb="FF1B8A9E"/></stop><stop position="1"><color rgb="FF0F5B6B"/></stop></gradientFill></fill>'
+  +'<fill><patternFill patternType="solid"><fgColor rgb="FFF2F8FA"/><bgColor indexed="64"/></patternFill></fill>'
+  +'<fill><patternFill patternType="solid"><fgColor rgb="FFD9F0E0"/><bgColor indexed="64"/></patternFill></fill>'
+  +'<fill><patternFill patternType="solid"><fgColor rgb="FFFADBD8"/><bgColor indexed="64"/></patternFill></fill>'
+  +'<fill><patternFill patternType="solid"><fgColor rgb="FFFCEBCB"/><bgColor indexed="64"/></patternFill></fill>'
+  +'<fill><patternFill patternType="solid"><fgColor rgb="FFD6E8F9"/><bgColor indexed="64"/></patternFill></fill>'
+  +'<fill><patternFill patternType="solid"><fgColor rgb="FFDCE9F2"/><bgColor indexed="64"/></patternFill></fill>'
+  +'<fill><gradientFill degree="90"><stop position="0"><color rgb="FF0E4C5F"/></stop><stop position="1"><color rgb="FF09303D"/></stop></gradientFill></fill>'
+  +'<fill><patternFill patternType="solid"><fgColor rgb="FFB9E4C7"/><bgColor indexed="64"/></patternFill></fill>'
+  +'<fill><patternFill patternType="solid"><fgColor rgb="FFF5C6C0"/><bgColor indexed="64"/></patternFill></fill>'
+  +'<fill><patternFill patternType="solid"><fgColor rgb="FFF6DCAF"/><bgColor indexed="64"/></patternFill></fill>'
+  +'<fill><patternFill patternType="solid"><fgColor rgb="FFC0DBF7"/><bgColor indexed="64"/></patternFill></fill>'
+  +'<fill><patternFill patternType="solid"><fgColor rgb="FFE2D6F4"/><bgColor indexed="64"/></patternFill></fill>'
+  +'</fills>'
+  +'<borders count="2"><border/><border><left style="thin"><color rgb="FFB9C9D2"/></left><right style="thin"><color rgb="FFB9C9D2"/></right><top style="thin"><color rgb="FFB9C9D2"/></top><bottom style="thin"><color rgb="FFB9C9D2"/></bottom></border></borders>'
+  +'<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+  +'<cellXfs count="14">'+xf(0,0)+xf(1,2)+xf(0,3)+xf(2,9)+xf(4,4)+xf(5,5)+xf(6,6)+xf(7,7)+xf(8,8)+xf(4,10)+xf(5,11)+xf(6,12)+xf(7,13)+xf(9,14)+'</cellXfs>'
+  +'</styleSheet>';
+}
+function sheetXml(rows,widths,hasDrawing,margin){
+  var nCols=0;rows.forEach(function(r){if(r.length>nCols)nCols=r.length;});
+  var off=margin?1:0;
+  if(margin)widths=[3.5].concat(widths);
+  var x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+  x+='<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">';
+  x+='<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>';
+  x+='<sheetViews><sheetView rightToLeft="1" workbookViewId="0"><pane ySplit="2" topLeftCell="A3" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>';
+  if(widths){x+='<cols>';widths.forEach(function(w,i){x+='<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+w+'" customWidth="1"/>';});x+='</cols>';}
+  x+='<sheetData>';
+  rows.forEach(function(r,ri){
+    var rh=ri===0?30:ri===1?36:19;
+    x+='<row r="'+(ri+1)+'" ht="'+rh+'" customHeight="1">';
+    r.forEach(function(c,ci){
+      var ref=colName(ci+off)+(ri+1);
+      var v=(c&&typeof c==="object")?c.v:c;
+      var st=(c&&typeof c==="object"&&c.s!=null)?c.s:0;
+      if(typeof v==="number"&&isFinite(v)){x+='<c r="'+ref+'" s="'+st+'"><v>'+v+'</v></c>';}
+      else{x+='<c r="'+ref+'" t="inlineStr" s="'+st+'"><is><t xml:space="preserve">'+xesc(v==null?"":v)+'</t></is></c>';}
+    });
+    x+='</row>';
+  });
+  x+='</sheetData>';
+  x+='<mergeCells count="1"><mergeCell ref="'+colName(off)+'1:'+colName(nCols-1+off)+'1"/></mergeCells>';
+  x+='<printOptions horizontalCentered="1"/><pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="portrait" fitToWidth="1" fitToHeight="0"/>';
+  if(hasDrawing)x+='<drawing r:id="rId1"/>';
+  x+='</worksheet>';
+  return x;
+}
+// رسم بياني أصلي (عمودي) مع بيانات مخزنة + مراجع حقيقية
+function chartXml(title,cats,series,legend){
+  var s='';
+  series.forEach(function(se,i){
+    var colr=se.color||"2F9E6E";
+    s+='<c:ser><c:idx val="'+i+'"/><c:order val="'+i+'"/>'
+      +'<c:tx><c:strRef><c:f>'+xesc(se.refName)+'</c:f><c:strCache><c:ptCount val="1"/><c:pt idx="0"><c:v>'+xesc(se.name)+'</c:v></c:pt></c:strCache></c:strRef></c:tx>'
+      +'<c:spPr><a:solidFill><a:srgbClr val="'+colr+'"/></a:solidFill></c:spPr>'
+      +'<c:invertIfNegative val="0"/>'
+      +'<c:cat><c:strRef><c:f>'+xesc(se.refCat)+'</c:f><c:strCache><c:ptCount val="'+cats.length+'"/>'
+      +cats.map(function(c,j){return '<c:pt idx="'+j+'"><c:v>'+xesc(c)+'</c:v></c:pt>';}).join('')
+      +'</c:strCache></c:strRef></c:cat>'
+      +'<c:val><c:numRef><c:f>'+xesc(se.refVal)+'</c:f><c:numCache><c:formatCode>General</c:formatCode><c:ptCount val="'+se.vals.length+'"/>'
+      +se.vals.map(function(v,j){return '<c:pt idx="'+j+'"><c:v>'+v+'</c:v></c:pt>';}).join('')
+      +'</c:numCache></c:numRef></c:val></c:ser>';
+  });
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+  +'<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+  +'<c:chart><c:title><c:tx><c:rich><a:bodyPr rtlCol="0"/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="1300" b="1"/></a:pPr><a:r><a:rPr lang="ar-EG" b="1" sz="1300"/><a:t>'+xesc(title)+'</a:t></a:r></a:p></c:rich></c:tx><c:overlay val="0"/></c:title>'
+  +'<c:autoTitleDeleted val="0"/>'
+  +'<c:plotArea><c:layout/>'
+  +'<c:barChart><c:barDir val="col"/><c:grouping val="clustered"/><c:varyColors val="0"/>'
+  +s
+  +'<c:gapWidth val="80"/><c:overlap val="-10"/>'
+  +'<c:axId val="100000001"/><c:axId val="100000002"/></c:barChart>'
+  +'<c:catAx><c:axId val="100000001"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:majorTickMark val="out"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="100000002"/><c:crosses val="autoZero"/><c:auto val="1"/><c:lblAligment val="ctr"/><c:lblOffset val="100"/></c:catAx>'
+  +'<c:valAx><c:axId val="100000002"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorGridlines/><c:majorTickMark val="out"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="100000001"/><c:crosses val="autoZero"/></c:valAx>'
+  +'</c:plotArea>'+(legend?'<c:legend><c:legendPos val="b"/><c:overlay val="0"/></c:legend>':'')
+  +'<c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart>'
+  +'<c:spPr><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:ln><a:solidFill><a:srgbClr val="D0D7DE"/></a:solidFill></a:ln></c:spPr>'
+  +'</c:chartSpace>';
+}
+function drawingXml(frames){
+  var x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+  +'<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">';
+  frames.forEach(function(f,i){
+    x+='<xdr:twoCellAnchor>'
+    +'<xdr:from><xdr:col>'+f.from[0]+'</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>'+f.from[1]+'</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>'
+    +'<xdr:to><xdr:col>'+f.to[0]+'</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>'+f.to[1]+'</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>'
+    +'<xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="'+(i+2)+'" name="chart'+(i+1)+'"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr>'
+    +'<xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm>'
+    +'<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" r:id="rId'+(i+1)+'"/></a:graphicData></a:graphic>'
+    +'</xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor>';
+  });
+  return x+'</xdr:wsDr>';
+}
+function relsXml(rels){
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+  +'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+  +rels.map(function(r){return '<Relationship Id="'+r.id+'" Type="'+r.type+'" Target="'+r.target+'"/>';}).join('')
+  +'</Relationships>';
+}
+function buildXlsx(sheets){
+  // sheets: [{name, rows, widths, charts?: [{title,cats,series,from,to}]}]
+  var chartFiles=[],drawingFiles=[],drawingRels=[],sheetRels={};
+  sheets.forEach(function(sh,si){
+    if(sh.charts&&sh.charts.length){
+      var rels=[];
+      sh.charts.forEach(function(ch,ci){
+        chartFiles.push({name:"xl/charts/chart"+(ci+1)+".xml",data:utf8Bytes(chartXml(ch.title,ch.cats,ch.series,ch.legend))});
+        rels.push({id:"rId"+(ci+1),type:"http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart",target:"../charts/chart"+(ci+1)+".xml"});
+      });
+      drawingFiles.push({name:"xl/drawings/drawing"+(si+1)+".xml",data:utf8Bytes(drawingXml(sh.charts))});
+      drawingRels.push({name:"xl/drawings/_rels/drawing"+(si+1)+".xml.rels",data:utf8Bytes(relsXml(rels))});
+      sheetRels[si+1]=relsXml([{id:"rId1",type:"http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing",target:"../drawings/drawing"+(si+1)+".xml"}]);
+    }
+  });
+  var ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    +'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+    +'<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+    +'<Default Extension="xml" ContentType="application/xml"/>'
+    +'<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+    +'<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+    +sheets.map(function(sh,i){return '<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';}).join('')
+    +drawingFiles.map(function(d,i){return '<Override PartName="/xl/drawings/drawing'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>';}).join('')
+    +chartFiles.map(function(c,i){return '<Override PartName="/xl/charts/chart'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>';}).join('')
+    +'</Types>';
+  var rels=relsXml([{id:"rId1",type:"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument",target:"xl/workbook.xml"}]);
+  var wb='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    +'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+    +'<workbookViews><workbookView/></workbookViews><sheets>'
+    +sheets.map(function(sh,i){return '<sheet name="'+xesc(sh.name)+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>';}).join('')
+    +'</sheets></workbook>';
+  var wbrels=relsXml(
+    sheets.map(function(sh,i){return {id:"rId"+(i+1),type:"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet",target:"worksheets/sheet"+(i+1)+".xml"};})
+    .concat([{id:"rId"+(sheets.length+1),type:"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles",target:"styles.xml"}])
+  );
+  var files=[
+    {name:"[Content_Types].xml",data:utf8Bytes(ct)},
+    {name:"_rels/.rels",data:utf8Bytes(rels)},
+    {name:"xl/workbook.xml",data:utf8Bytes(wb)},
+    {name:"xl/_rels/workbook.xml.rels",data:utf8Bytes(wbrels)},
+    {name:"xl/styles.xml",data:utf8Bytes(stylesXml())}
+  ];
+  sheets.forEach(function(sh,i){
+    files.push({name:"xl/worksheets/sheet"+(i+1)+".xml",data:utf8Bytes(sheetXml(sh.rows,sh.widths,!!(sh.charts&&sh.charts.length),sh.margin!==false))});
+    if(sheetRels[i+1])files.push({name:"xl/worksheets/_rels/sheet"+(i+1)+".xml.rels",data:utf8Bytes(sheetRels[i+1])});
+  });
+  files=files.concat(drawingFiles,drawingRels,chartFiles);
+  return zipStore(files);
+}
+
+// بناء ملف الشهر الكامل: ملخص + لوحة مؤشرات + شيت لكل يوم + شيت لكل موظف + كل الشهور
+function buildWorkbook(o){
+  var usedNames={};
+  function sname(n){
+    n=String(n).replace(/[:\\\/\?\*\[\]]/g,"-");
+    if(n.length>31)n=n.slice(0,31);
+    var base=n,i=2;
+    while(usedNames[n]){n=base.slice(0,26)+" ("+i+")";i++;}
+    usedNames[n]=1;return n;
+  }
+  var sheets=[];
+  // 1) مؤشرات الشهر لكل موظف
+  var kpiRows=[
+    [xc("📊 مؤشرات الحضور — شهر "+o.monthKey,XS.TITLE)],
+    [["الاسم",XS.HEADER],["أيام الحضور",XS.HGREEN],["أيام الغياب (بدون الجمعة)",XS.HRED],["إجمالي ساعات الشغل",XS.HBLUE],["متوسط وقت الحضور",XS.HPURPLE],["إجمالي التأخير (دقيقة)",XS.HRED],["مرات الخروج البدري",XS.HORANGE],["إجمالي السهر (دقيقة)",XS.HBLUE]].map(function(pp){return xc(pp[0],pp[1]);})
+  ];
+  var mPresent=0,mAbsent=0,mWork=0,mLate=0,mEarly=0,mOT=0;
+  var kps=o.list.map(function(n){
+    var kp=o.monthKPI(n,o.monthKey);
+    mPresent+=kp.present;mAbsent+=kp.absent;mWork+=kp.totalWorked;mLate+=kp.totalLate;mEarly+=kp.earlyCount;mOT+=kp.totalOT;
+    return {n:n,kp:kp};
+  });
+  kps.forEach(function(x,idx){
+    var band=(idx%2)?XS.BAND:XS.PLAIN;
+    kpiRows.push([
+      xc(x.n,band),
+      xc(x.kp.present,x.kp.present?XS.GREEN:band),
+      xc(x.kp.absent,x.kp.absent?XS.RED:XS.GREEN),
+      xc(x.kp.totalWorked>60000?o.fmtDur(x.kp.totalWorked):"—",band),
+      xc(x.kp.avgIn,band),
+      xc(x.kp.totalLate,x.kp.totalLate?XS.RED:XS.GREEN),
+      xc(x.kp.earlyCount,x.kp.earlyCount?XS.ORANGE:band),
+      xc(x.kp.totalOT,x.kp.totalOT?XS.BLUE:band)
+    ]);
+  });
+  kpiRows.push([xc("الإجمالي",XS.TOTAL),xc(mPresent,XS.TOTAL),xc(mAbsent,XS.TOTAL),xc(mWork>60000?o.fmtDur(mWork):"—",XS.TOTAL),xc("—",XS.TOTAL),xc(mLate,XS.TOTAL),xc(mEarly,XS.TOTAL),xc(mOT,XS.TOTAL)]);
+  sheets.push({name:sname("مؤشرات "+o.monthKey),rows:kpiRows,widths:[22,11,19,15,14,16,15,14]});
+  // 2) لوحة المؤشرات بالرسومات
+  var dashName=sname("لوحة المؤشرات");
+  var qn="'"+dashName+"'";
+  var dashRows=[
+    [xc("📈 لوحة المؤشرات — شهر "+o.monthKey,XS.TITLE)],
+    [["الاسم",XS.HEADER],["ساعات الشغل (ساعة)",XS.HBLUE],["التأخير (دقيقة)",XS.HRED],["أيام الحضور",XS.HGREEN],["أيام الغياب",XS.HORANGE],["السهر (دقيقة)",XS.HPURPLE]].map(function(pp){return xc(pp[0],pp[1]);})
+  ];
+  kps.forEach(function(x,idx){
+    var band=(idx%2)?XS.BAND:XS.PLAIN;
+    dashRows.push([
+      xc(x.n,band),
+      xc(Math.round(x.kp.totalWorked/36000)/100,band),
+      xc(x.kp.totalLate,x.kp.totalLate?XS.RED:XS.GREEN),
+      xc(x.kp.present,x.kp.present?XS.GREEN:band),
+      xc(x.kp.absent,x.kp.absent?XS.RED:XS.GREEN),
+      xc(x.kp.totalOT,x.kp.totalOT?XS.BLUE:band)
+    ]);
+  });
+  var dn=o.list.length;
+  var rng=function(col){return qn+"!$"+col+"$3:$"+col+"$"+(2+dn);};
+  var catR=rng("B");
+  var dashCharts=[
+    {title:"ساعات الشغل لكل موظف",from:[1,dn+4],to:[6,dn+19],cats:o.list,
+      series:[{name:"ساعات الشغل (ساعة)",color:"3D9B6E",refName:qn+"!$C$2",refCat:catR,refVal:rng("C"),vals:kps.map(function(x){return Math.round(x.kp.totalWorked/36000)/100;})}]},
+    {title:"دقائق التأخير لكل موظف",from:[7,dn+4],to:[12,dn+19],cats:o.list,
+      series:[{name:"التأخير (دقيقة)",color:"E2605F",refName:qn+"!$D$2",refCat:catR,refVal:rng("D"),vals:kps.map(function(x){return x.kp.totalLate;})}]},
+    {title:"الحضور مقابل الغياب",from:[1,dn+20],to:[6,dn+35],cats:o.list,legend:true,
+      series:[
+        {name:"أيام الحضور",color:"3D9B6E",refName:qn+"!$E$2",refCat:catR,refVal:rng("E"),vals:kps.map(function(x){return x.kp.present;})},
+        {name:"أيام الغياب",color:"E2605F",refName:qn+"!$F$2",refCat:catR,refVal:rng("F"),vals:kps.map(function(x){return x.kp.absent;})}
+      ]}
+  ];
+  sheets.push({name:dashName,rows:dashRows,widths:[22,14,13,11,11,12,13,13,13,13,13,13],charts:dashCharts});
+  // 3) شيت لكل يوم في الشهر (ما عدا الجمعة)
+  function dayRowsFor(k){
+    var rows=[
+      [xc("📋 سجل الحضور — يوم "+k,XS.TITLE)],
+      ["الاسم","الحالة","الحضور","الانصراف","ساعات الشغل","تأخير (دقيقة)","خروج بدري (دقيقة)","سهر (دقيقة)","نقط تتبع","آخر موقع"].map(function(h){return xc(h,XS.HEADER);})
+    ];
+    var tLate=0,tEarly=0,tOT=0,tPings=0,tWork=0,tPresent=0;
+    o.list.forEach(function(n,idx){
+      var st=o.dayStats(n,k);
+      var band=(idx%2)?XS.BAND:XS.PLAIN;
+      var status,stStyle;
+      if(!st.has){status="غايب";stStyle=XS.RED;}
+      else if(st.working){status="حاضر دلوقتي";stStyle=XS.GREEN;tPresent++;}
+      else if(st.lastOut){status="انصرف";stStyle=XS.GREEN;tPresent++;}
+      else{status="موقع بس";stStyle=XS.BLUE;tPresent++;}
+      tLate+=st.lateMin;tEarly+=st.earlyMin;tOT+=st.otMin;tPings+=st.pings||0;tWork+=st.worked;
+      rows.push([
+        xc(n,band),xc(status,stStyle),
+        xc(st.firstIn?o.fmtTime(st.firstIn):"—",band),
+        xc(st.lastOut?o.fmtTime(st.lastOut):(st.working?"لسه شغال":"—"),band),
+        xc(st.worked>60000?o.fmtDur(st.worked):"—",band),
+        xc(st.lateMin||0,st.lateMin?XS.RED:XS.GREEN),
+        xc(st.earlyMin||0,st.earlyMin?XS.ORANGE:band),
+        xc(st.otMin||0,st.otMin?XS.BLUE:band),
+        xc(st.pings||0,band),
+        xc((st.lastAny&&st.lastAny.lat)?o.mapLink(st.lastAny):"—",band)
+      ]);
+    });
+    rows.push([xc("الإجمالي ("+tPresent+" حاضر)",XS.TOTAL),xc("",XS.TOTAL),xc("",XS.TOTAL),xc("",XS.TOTAL),
+      xc(tWork>60000?o.fmtDur(tWork):"—",XS.TOTAL),xc(tLate,XS.TOTAL),xc(tEarly,XS.TOTAL),xc(tOT,XS.TOTAL),xc(tPings,XS.TOTAL),xc("",XS.TOTAL)]);
+    return rows;
+  }
+  var mdays=o.monthDays(o.monthKey);
+  mdays.forEach(function(k){
+    if(o.isFriday(k))return;
+    sheets.push({name:sname("يوم "+k),rows:dayRowsFor(k),widths:[22,13,10,11,13,12,14,11,10,36]});
+  });
+  // 4) شيت لكل موظف (كل أيام الشهر ما عدا الجمعة)
+  o.list.forEach(function(n){
+    var rows=[
+      [xc("👤 سجل الموظف: "+n+" — شهر "+o.monthKey,XS.TITLE)],
+      [["التاريخ",XS.HEADER],["الحالة",XS.HEADER],["الحضور",XS.HEADER],["الانصراف",XS.HEADER],["ساعات الشغل",XS.HBLUE],["تأخير (دقيقة)",XS.HRED],["خروج بدري (دقيقة)",XS.HORANGE],["سهر (دقيقة)",XS.HBLUE],["نقط تتبع",XS.HEADER]].map(function(pp){return xc(pp[0],pp[1]);})
+    ];
+    var tW=0,tL=0,tE=0,tOT=0,tP=0,pres=0,ri=0;
+    mdays.forEach(function(k){
+      if(o.isFriday(k))return;
+      var st=o.dayStats(n,k);
+      var band=(ri%2)?XS.BAND:XS.PLAIN;ri++;
+      var status,stStyle;
+      if(!st.has){status="غايب";stStyle=XS.RED;}
+      else if(st.working){status="حاضر دلوقتي";stStyle=XS.GREEN;pres++;}
+      else if(st.lastOut){status="انصرف";stStyle=XS.GREEN;pres++;}
+      else{status="موقع بس";stStyle=XS.BLUE;pres++;}
+      tW+=st.worked;tL+=st.lateMin;tE+=st.earlyMin;tOT+=st.otMin;tP+=st.pings||0;
+      rows.push([
+        xc(k,band),xc(status,stStyle),
+        xc(st.firstIn?o.fmtTime(st.firstIn):"—",band),
+        xc(st.lastOut?o.fmtTime(st.lastOut):(st.working?"لسه شغال":"—"),band),
+        xc(st.worked>60000?o.fmtDur(st.worked):"—",band),
+        xc(st.lateMin||0,st.lateMin?XS.RED:XS.GREEN),
+        xc(st.earlyMin||0,st.earlyMin?XS.ORANGE:band),
+        xc(st.otMin||0,st.otMin?XS.BLUE:band),
+        xc(st.pings||0,band)
+      ]);
+    });
+    rows.push([xc("الإجمالي ("+pres+" يوم)",XS.TOTAL),xc("",XS.TOTAL),xc("",XS.TOTAL),xc("",XS.TOTAL),
+      xc(tW>60000?o.fmtDur(tW):"—",XS.TOTAL),xc(tL,XS.TOTAL),xc(tE,XS.TOTAL),xc(tOT,XS.TOTAL),xc(tP,XS.TOTAL)]);
+    sheets.push({name:sname("م "+n),rows:rows,widths:[18,13,10,11,13,12,14,11,10]});
+  });
+  // 5) كل الشهور (ملخص شهري لكل موظف)
+  var months={};o.recs.forEach(function(r){months[o.dayKey(r.ts).slice(0,7)]=1;});
+  var mlist=Object.keys(months).sort().reverse();
+  if(mlist.length){
+    var allRows=[
+      [xc("🗓️ ملخص كل الشهور",XS.TITLE)],
+      [["الشهر",XS.HEADER],["الاسم",XS.HEADER],["أيام الحضور",XS.HGREEN],["أيام الغياب",XS.HRED],["ساعات الشغل",XS.HBLUE],["التأخير (دقيقة)",XS.HRED],["خروج بدري (مرة)",XS.HORANGE],["السهر (دقيقة)",XS.HBLUE]].map(function(pp){return xc(pp[0],pp[1]);})
+    ];
+    mlist.forEach(function(mk,mi){
+      o.list.forEach(function(n){
+        var kp=o.monthKPI(n,mk);
+        var band=(mi%2)?XS.BAND:XS.PLAIN;
+        allRows.push([
+          xc(mk,band),xc(n,band),
+          xc(kp.present,kp.present?XS.GREEN:band),
+          xc(kp.absent,kp.absent?XS.RED:XS.GREEN),
+          xc(kp.totalWorked>60000?o.fmtDur(kp.totalWorked):"—",band),
+          xc(kp.totalLate,kp.totalLate?XS.RED:XS.GREEN),
+          xc(kp.earlyCount,kp.earlyCount?XS.ORANGE:band),
+          xc(kp.totalOT,kp.totalOT?XS.BLUE:band)
+        ]);
+      });
+    });
+    sheets.push({name:sname("كل الشهور"),rows:allRows,widths:[11,22,11,11,15,13,13,12]});
+  }
+  return sheets;
+}
+//XLSX-END
+
+$("btnXlsx").addEventListener("click",function(){
+  var k=$("logDate").value||dayKey(Date.now());
+  var monthKey=k.slice(0,7);
+  var names={};
+  state.employees.forEach(function(e){names[e.name]=1;});
+  recs.forEach(function(r){names[r.empName]=1;});
+  var list=Object.keys(names).sort();
+  if(!list.length){toast("مفيش بيانات للتصدير");return;}
+  try{
+    var sheets=buildWorkbook({k:k,monthKey:monthKey,list:list,recs:recs,dayStats:dayStats,monthKPI:monthKPI,dayKey:dayKey,fmtTime:fmtTime,fmtDur:fmtDur,mapLink:mapLink,isFriday:isFriday,monthDays:monthDays});
+    var bytes=buildXlsx(sheets);
+    var a=document.createElement("a");
+    a.href=URL.createObjectURL(new Blob([bytes],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
+    a.download="حضور_شهر_"+monthKey+".xlsx";
+    a.click();
+    toast("اتصدّر ملف Excel ✅");
+  }catch(e){
+    toast("حصل خطأ في التصدير");
+  }
 });
 $("btnSheet").addEventListener("click",function(){
   if(SHEET_URL&&SHEET_URL.indexOf("http")===0)window.open(SHEET_URL,"_blank");
@@ -380,6 +863,8 @@ $("btnSheet").addEventListener("click",function(){
 });
 
 function renderSettings(){
+  $("shiftStart").value=state.shiftStart||"08:00";
+  $("shiftEnd").value=state.shiftEnd||"17:00";
   $("pingSel").value=String(state.pingMin||60);
   $("backendUrl").value=BACKEND_URL().indexOf("http")===0?BACKEND_URL():"";
   $("backendState").textContent=BACKEND_URL().indexOf("http")===0?(online?"الحالة: متصل ✅":"الحالة: محفوظ بس مش متصل دلوقتي"):"الحالة: لسه مش متربط";
@@ -396,6 +881,8 @@ function renderSettings(){
     d.appendChild(b);el.appendChild(d);
   });
 }
+$("shiftStart").addEventListener("change",function(){state.shiftStart=this.value||"08:00";saveState();toast("بداية الشفت: "+state.shiftStart);});
+$("shiftEnd").addEventListener("change",function(){state.shiftEnd=this.value||"17:00";saveState();toast("نهاية الشفت: "+state.shiftEnd);});
 $("btnAddEmp").addEventListener("click",function(){
   var n=$("newEmp").value.trim();
   if(!n)return;
